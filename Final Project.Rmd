@@ -1,0 +1,232 @@
+---
+title: "STAT 170 Final Project Info"
+output:
+  word_document: default
+  html_document: default
+date: "2023-11-15"
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+# Setting up data
+
+```{r}
+insurance <- read.csv("~/Desktop/UC_Riverside/2023-2024/Fall/STAT 170/Final Project/insurance.csv")
+# View(insurance)
+```
+
+```{r}
+library(tidyverse)
+insurance
+```
+
+Setting variables in R
+
+```{r}
+age <- insurance$age
+sex <- insurance$sex
+bmi <- insurance$bmi
+children <- insurance$children
+smoker <- insurance$smoker
+region <- insurance$region
+charges <- insurance$charges
+```
+
+# Plots of Data
+Numerical Data: Histograms
+
+```{r}
+par(mfrow = c(2,2))
+hist1 <- hist(age)
+hist2 <- hist(bmi)
+hist3 <- hist(children)
+hist4 <- hist(charges)
+```
+
+Categorical Data: Frequency tables
+```{r}
+par(mfrow = c(3,1))
+table1 <- table(sex)
+table2 <- table(smoker)
+table3 <- table(region)
+
+barplot(table1)
+barplot(table2)
+barplot(table3)
+```
+
+Box Plots
+
+```{r}
+par(mfrow = c(2,2))
+boxplot(age, main = "Box plot of age", horizontal = T)
+boxplot(bmi, main = "Box plot of bmi", horizontal = T)
+boxplot(children, main = "Box plot of children", horizontal = T)
+boxplot(charges, main = "Box plot of charges", horizontal = T)
+```
+
+
+# Summary Statistics
+
+```{r}
+print("Age Summary")
+print(summary(age))
+print("BMI Summary")
+print(summary(bmi))
+print("Children Summary")
+print(summary(children))
+print("Charges Summary")
+print(summary(charges))
+```
+
+
+# Pairwise Scatterplots + Coefficients of Correlation for all variables (Multicollinearity)
+```{r}
+library("ggplot2")
+library("gridExtra")
+
+library("GGally")
+ggpairs(insurance) + theme()
+```
+
+Multicollinearity Correlation Values for predictors
+
+```{r}
+# age, bmi, children, charges
+print("Correlation Coefficient of age ~ charges")
+print(cor(age, charges))
+print("Correlation Coefficient of bmi ~ charges")
+print(cor(bmi, charges))
+print("Correlation Coefficient of children ~ charges")
+print(cor(children, charges))
+```
+
+
+# Multicollinearity Summary of Linear Model
+
+```{r}
+ins.mlr <- lm(charges~age+sex+bmi+children+smoker+region, data = insurance)
+summary(ins.mlr)
+```
+
+# Variance Inflation Factor (VIF)
+
+```{r}
+# Using car Library
+# Used in Analysis
+library(car)
+vif(ins.mlr)
+```
+
+```{r}
+# Using rms library
+library(rms)
+vif(ins.mlr)
+```
+
+
+
+# ANALYSIS 2
+
+## Transform the `charges` variable
+
+```{r}
+# Log-transformed to make Charges variable more normal distributed
+charges_log <- log(charges)
+hist(charges_log)
+boxplot(charges_log, main = "Box plot of charges", horizontal = T)
+```
+
+# Residual Analysis for First-Order Predictors
+## Residuals vs. Fitted Plot
+
+```{r}
+# plot(log_model)
+
+# ANOVA
+# anova(log_model)
+```
+
+
+# $R^2$ Values for insurance dataset with log-transformed `Charges` data:
+
+```{r}
+library(leaps)
+insurance_all <- regsubsets(charges_log ~ age+sex+bmi+children+smoker+region, data = insurance,
+                            nbest = 1, nvmax = 5)
+summary(insurance_all)$rsq # R^2
+summary(insurance_all)$adjr2 # Adjusted R^2
+```
+
+
+
+
+# Full Model Selection (Second Order Terms)
+
+```{r}
+library(leaps)
+charges_all <- regsubsets(charges_log ~.^2 + I(age^2) + I(bmi^2) + I(children^2), data = insurance, nbest = 1, nvmax = 5)
+summary(charges_all)$which
+summary(charges_all)$adjr2
+```
+
+# Step Model Selection
+
+```{r}
+full_model <- lm(charges_log ~.^2 + I(age^2) + I(bmi^2) + I(children^2), data = insurance)
+null_model <- lm(charges_log ~ 1, data = insurance)
+step_model1 <- step(null_model, scope = list(lower = null_model, upper = full_model), direction = "both",test="F")
+summary(step_model1)
+
+```
+
+
+# Multicollinearity Analysis (on chosen model)
+
+```{r}
+
+```
+
+# Correlation Coefficients
+
+```{r}
+# age, bmi, children, charges_log
+print("Correlation Coefficient of age ~ charges_log")
+print(cor(age, charges_log))
+print("Correlation Coefficient of bmi ~ charges_log")
+print(cor(bmi, charges_log))
+print("Correlation Coefficient of children ~ charges_log")
+print(cor(children, charges_log))
+```
+
+
+
+# Step-wise Regression
+
+```{r}
+all_possible_data <- select(insurance, -charges)
+charges_log <- log(insurance$charges)
+full_model <- lm(charges_log ~.^2 + I(age^2) + I(bmi^2) + I(children^2), data = all_possible_data)
+null_model <- lm(charges_log ~ 1, data = insurance)
+step_model1 <- step(null_model, scope = list(lower = null_model, upper = full_model), direction = "both",test="F")
+```
+
+
+# Multicollinearity Summary
+
+```{r}
+log_model <- lm(charges_log ~ age+sex+bmi+children+smoker+region, data = insurance)
+summary(log_model)
+```
+
+
+# VIF on Chosen Model
+
+```{r}
+# Using car Library
+vif(step_model1)
+```
